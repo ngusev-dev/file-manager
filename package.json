@@ -1,0 +1,27 @@
+{
+  "name": "secure-file-manager",
+  "version": "1.0.0",
+  "description": "Консольный файловый менеджер с PostgreSQL и защитой от типовых уязвимостей (SDLC, практика 1)",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22.2"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "db:init": "node scripts/db-init.js",
+    "test": "node --test \"tests/*.test.js\""
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@inquirer/prompts": "^8.7.4",
+    "argon2": "0.44.0",
+    "dotenv": "^18.0.8",
+    "fast-xml-parser": "^5.11.2",
+    "pg": "^8.23.1",
+    "systeminformation": "^5.33.16",
+    "yauzl": "^3.4.0",
+    "yazl": "^3.3.1",
+    "zod": "^4.6.7"
+  }
+}
