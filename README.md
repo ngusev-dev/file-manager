@@ -13,6 +13,7 @@ cp .env.example .env        # задать пароли DB_ADMIN_PASSWORD и DB_
 docker compose up -d        # PostgreSQL 16 на 127.0.0.1:${PGPORT}
 npm run db:init             # схема, хранимые функции, роль приложения
 npm start
+npm run dev                 # то же, но с автоперезапуском при изменении файлов в src/
 npm test                    # 36 тестов; тесты БД пропускаются, если PostgreSQL недоступна
 ```
 

@@ -10,8 +10,7 @@ const READ_FLAGS = FS.O_RDONLY | (FS.O_NOFOLLOW ?? 0);
 
 /**
  * Чтение, запись и удаление файлов внутри песочницы пользователя.
- * Каждый путь проходит через resolveInside; ни одна операция не делает
- * отдельной проверки «существует ли файл» перед действием — нет окна для гонки (TOCTOU).
+ * Каждый путь проходит через resolveInside
  */
 export class FileManager {
   #root;
@@ -68,8 +67,6 @@ export class FileManager {
     return result.sort((a, b) => b.isDir - a.isDir || a.name.localeCompare(b.name));
   }
 
-  // Размер проверяется у уже открытого дескриптора и читается ровно столько байт:
-  // файл нельзя подменить или «раздуть» между проверкой размера и чтением.
   async readText(userPath) {
     const abs = await this.resolve(userPath);
     const handle = await fs.open(abs, READ_FLAGS);
@@ -111,7 +108,7 @@ export class FileManager {
     return this.#meta(abs, buffer.length);
   }
 
-  // Удаляет файл или пустой каталог; рекурсивное удаление намеренно не поддерживается.
+  // Удаляет файл или пустой каталог.
   async remove(userPath) {
     const abs = await this.resolve(userPath);
     const stat = await fs.lstat(abs);
