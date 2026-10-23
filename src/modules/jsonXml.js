@@ -2,8 +2,6 @@ import { XMLParser, XMLBuilder, XMLValidator } from "fast-xml-parser";
 import { z } from "zod";
 import { SecurityError, AppError } from "../errors.js";
 
-// Предметная модель для сериализации: список людей. Схема — белый список:
-// неизвестные поля, неверные типы и выход за диапазоны отклоняются (минимальное доверие к входу).
 export const PersonSchema = z
   .object({
     name: z.string().trim().min(1).max(100),
@@ -60,11 +58,6 @@ const xmlParser = new XMLParser({
 
 const xmlBuilder = new XMLBuilder({ format: true, indentBy: "  ", suppressEmptyNode: true });
 
-/**
- * Безопасная десериализация XML. DTD запрещён полностью: XXE (чтение локальных файлов)
- * и «billion laughs» (экспоненциальное раскрытие) работают только через сущности,
- * объявленные в <!DOCTYPE>. Без DTD остаются лишь 5 стандартных: &lt; &gt; &amp; &quot; &apos;.
- */
 export function parsePeopleXml(text, { maxBytes }) {
   assertSize(text, maxBytes);
   if (/<!DOCTYPE|<!ENTITY/i.test(text)) {

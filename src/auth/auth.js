@@ -1,7 +1,7 @@
 import { config } from "../config.js";
 import { AppError } from "../errors.js";
 import * as repo from "../db/repository.js";
-import { hashPassword, verifyPassword, getDummyHash } from "./password.js";
+import { hashPassword, verifyPassword } from "./password.js";
 
 const USERNAME = /^[a-zA-Z0-9_]{3,32}$/;
 const MIN_PASSWORD = 8;
@@ -39,7 +39,6 @@ export async function register(username, password) {
 
 export async function login(username, password) {
   if (validateUsername(username) !== true || password.length > MAX_PASSWORD) {
-    await verifyPassword(password.slice(0, MAX_PASSWORD), await getDummyHash());
     throw new AppError(INVALID_CREDENTIALS);
   }
 
@@ -50,8 +49,8 @@ export async function login(username, password) {
     );
   }
 
-  const ok = await verifyPassword(password, user?.password_hash ?? (await getDummyHash()));
-  if (!user || !ok) {
+  const ok = user && (await verifyPassword(password, user.password_hash));
+  if (!ok) {
     await repo.registerLoginFailure(
       user?.id ?? null,
       username,

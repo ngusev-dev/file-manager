@@ -44,7 +44,6 @@ export const config = Object.freeze({
   zip: Object.freeze({
     maxEntries: positiveInt("ZIP_MAX_ENTRIES", 1000),
     maxTotalSize: positiveInt("ZIP_MAX_TOTAL_SIZE", 100 * 1024 * 1024),
-    maxRatio: positiveInt("ZIP_MAX_RATIO", 100),
   }),
   auth: Object.freeze({
     maxFailedAttempts: positiveInt("AUTH_MAX_FAILED_ATTEMPTS", 5),

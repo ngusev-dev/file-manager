@@ -1,5 +1,4 @@
-// Интеграционные тесты с реальной PostgreSQL. Пропускаются, если БД недоступна
-// (поднимите её: docker compose up -d && npm run db:init).
+
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -24,7 +23,7 @@ test("SQL-инъекция в логине не даёт войти и не ло
   for (const evil of ["' OR '1'='1", "admin'--", "x'; DROP TABLE users; --"]) {
     await assert.rejects(login(evil, "whatever1"), AppError);
   }
-  // Инъекция в значение, переданное напрямую в хранимую функцию, — просто строка.
+
   assert.equal(await repo.getUserAuth("' OR '1'='1"), null);
   const { rows } = await getPool().query({ text: "SELECT count(*) FROM get_user_files($1)", values: [1] });
   assert.ok(rows.length === 1, "таблицы на месте");

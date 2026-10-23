@@ -1,5 +1,4 @@
 import argon2 from "argon2";
-import { randomBytes } from "node:crypto";
 
 const OPTIONS = {
   type: argon2.argon2id,
@@ -18,12 +17,4 @@ export async function verifyPassword(password, stored) {
   } catch {
     return false;
   }
-}
-
-// Хеш случайного пароля для выравнивания времени ответа, когда пользователь не найден:
-// иначе по скорости отказа можно было бы перебором выяснять существующие логины.
-let dummyHash;
-export async function getDummyHash() {
-  dummyHash ??= await hashPassword(randomBytes(16).toString("hex"));
-  return dummyHash;
 }

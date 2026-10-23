@@ -21,8 +21,6 @@ try {
   await client.query(await sqlFile("schema.sql"));
   await client.query(await sqlFile("procedures.sql"));
 
-  // DDL не поддерживает параметры ($1), поэтому имя роли и пароль экранируются
-  // штатными функциями драйвера, а не конкатенацией «как есть».
   const role = client.escapeIdentifier(config.db.appUser);
   const secret = client.escapeLiteral(dbPassword("app"));
   const { rowCount } = await client.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [config.db.appUser]);

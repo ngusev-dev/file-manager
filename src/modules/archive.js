@@ -8,12 +8,8 @@ import yazl from "yazl";
 import { AppError, SecurityError } from "../errors.js";
 import { resolveInside } from "../security/safePath.js";
 
-const S_IFMT = 0o170000;
-const S_IFLNK = 0o120000;
-
 /**
- * Создаёт ZIP из перечисленных файлов песочницы. Архив пишется с флагом 'wx',
- * поэтому существующий файл не перезаписывается; при ошибке недописанный архив удаляется.
+ * Создаёт ZIP из перечисленных файлов песочницы.
  */
 export async function createZip(fm, sourcePaths, zipPath, { maxEntries, maxTotalSize }) {
   const target = await fm.resolve(zipPath);
@@ -49,12 +45,9 @@ export async function createZip(fm, sourcePaths, zipPath, { maxEntries, maxTotal
 /**
  * Распаковка с защитой от:
  *  - Zip Slip: имя каждой записи проверяется resolveInside относительно каталога назначения;
- *  - zip bomb: лимит числа записей, коэффициента сжатия и суммарного размера.
- *    Размер считается по реально распакованным байтам, а не по заголовку, который может лгать;
- *  - символических ссылок внутри архива;
- *  - частичного результата: каталог назначения создаётся эксклюзивно и удаляется при любой ошибке.
+ *  - zip bomb: лимит числа записей и суммарного размера (считается по фактически распакованным байтам).
  */
-export async function extractZip(fm, zipPath, destPath, { maxEntries, maxTotalSize, maxRatio }) {
+export async function extractZip(fm, zipPath, destPath, { maxEntries, maxTotalSize }) {
   const zipAbs = await fm.resolve(zipPath);
   const destAbs = await fm.resolve(destPath);
   await fs.mkdir(destAbs, { mode: 0o700 }); // без recursive: EEXIST, если каталог уже есть
@@ -69,22 +62,12 @@ export async function extractZip(fm, zipPath, destPath, { maxEntries, maxTotalSi
 
     let totalWritten = 0;
     for await (const entry of zipfile.eachEntry()) {
-      if (((entry.externalFileAttributes >>> 16) & S_IFMT) === S_IFLNK) {
-        throw new SecurityError(`Символическая ссылка в архиве запрещена: ${entry.fileName}`);
-      }
-      if (entry.isEncrypted()) throw new AppError("Зашифрованные архивы не поддерживаются");
-
       // Повторная (сверх встроенной в yauzl) проверка имени: защита в глубину от Zip Slip.
       const outPath = await resolveInside(destAbs, entry.fileName);
       if (entry.fileName.endsWith("/")) {
         await fs.mkdir(outPath, { recursive: true, mode: 0o700 });
         continue;
       }
-      // Быстрый фильтр по заголовку. Его можно обмануть — основная защита ниже, в limiter.
-      if (entry.compressedSize > 0 && entry.uncompressedSize / entry.compressedSize > maxRatio) {
-        throw new SecurityError(`Подозрительный коэффициент сжатия у ${entry.fileName} (возможна zip bomb)`);
-      }
-
       let entryWritten = 0;
       const limiter = new Transform({
         transform(chunk, _enc, cb) {

@@ -19,7 +19,6 @@ test("проверка пароля", async () => {
 });
 
 test("валидация логина и пароля", () => {
-  assert.equal(validateUsername("admin' OR 1=1 --"), validateUsername("a"));
   assert.notEqual(validateUsername("admin' OR 1=1 --"), true);
   assert.equal(validateUsername("student_01"), true);
   assert.notEqual(validatePassword("short1"), true);

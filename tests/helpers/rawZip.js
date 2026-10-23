@@ -2,7 +2,6 @@ import { crc32, deflateRawSync } from "node:zlib";
 
 /**
  * Собирает ZIP «вручную», без проверок, которые делают нормальные библиотеки, —
- * чтобы в тестах можно было получить вредоносный архив (Zip Slip, ложный размер, symlink).
  */
 export function buildRawZip(entries) {
   const locals = [];
