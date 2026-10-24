@@ -230,8 +230,6 @@ export async function mainMenu(ctx) {
   }
 }
 
-// Ошибка операции не роняет приложение: пользователь видит понятное сообщение,
-// подробности (стек) выводятся только в режиме DEBUG.
 export async function runSafely(fn) {
   try {
     await fn();

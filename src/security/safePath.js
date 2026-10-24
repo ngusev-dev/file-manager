@@ -47,7 +47,6 @@ export async function resolveInside(root, userPath, { allowRoot = false } = {}) 
   return real;
 }
 
-// Путь для хранения в БД и показа пользователю: относительный, с прямыми слешами.
 export function toLocation(root, absPath) {
   return path.relative(root, absPath).split(path.sep).join("/");
 }

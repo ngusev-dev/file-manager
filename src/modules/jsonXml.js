@@ -50,7 +50,7 @@ export function serializeJson(value, schema) {
 
 const xmlParser = new XMLParser({
   ignoreAttributes: true,
-  parseTagValue: false, // типы приводим сами по схеме, а не «угадываем»
+  parseTagValue: false,
   isArray: (_name, jpath) => jpath === "people.person",
 });
 

@@ -1,6 +1,5 @@
 import si from "systeminformation";
 
-// Служебные виртуальные ФС Linux — не накопители, в списке дисков они не нужны.
 const SKIP_FS_TYPES = new Set(["tmpfs", "devtmpfs", "squashfs", "overlay", "proc", "sysfs", "efivarfs"]);
 
 /**
