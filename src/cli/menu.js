@@ -236,6 +236,5 @@ export async function runSafely(fn) {
   } catch (err) {
     if (err?.name === "ExitPromptError") throw err;
     console.log(styleText("red", `✖ ${toUserMessage(err)}`));
-    if (process.env.DEBUG) console.error(err);
   }
 }

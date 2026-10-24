@@ -59,7 +59,7 @@ const xmlBuilder = new XMLBuilder({ format: true, indentBy: "  ", suppressEmptyN
 export function parsePeopleXml(text, { maxBytes }) {
   assertSize(text, maxBytes);
   if (/<!DOCTYPE|<!ENTITY/i.test(text)) {
-    throw new SecurityError("XML с DTD/сущностями запрещён (защита от XXE)");
+    throw new SecurityError("XML с DTD/сущностями запрещён");
   }
   if (XMLValidator.validate(text) !== true) throw new AppError("Файл не является корректным XML");
 

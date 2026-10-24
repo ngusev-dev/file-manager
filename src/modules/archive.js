@@ -62,7 +62,6 @@ export async function extractZip(fm, zipPath, destPath, { maxEntries, maxTotalSi
 
     let totalWritten = 0;
     for await (const entry of zipfile.eachEntry()) {
-      // Повторная проверка имени: защита в глубину от Zip Slip.
       const outPath = await resolveInside(destAbs, entry.fileName);
       if (entry.fileName.endsWith("/")) {
         await fs.mkdir(outPath, { recursive: true, mode: 0o700 });
