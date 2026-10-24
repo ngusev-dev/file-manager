@@ -50,7 +50,7 @@ export async function createZip(fm, sourcePaths, zipPath, { maxEntries, maxTotal
 export async function extractZip(fm, zipPath, destPath, { maxEntries, maxTotalSize }) {
   const zipAbs = await fm.resolve(zipPath);
   const destAbs = await fm.resolve(destPath);
-  await fs.mkdir(destAbs, { mode: 0o700 }); // без recursive: EEXIST, если каталог уже есть
+  await fs.mkdir(destAbs, { mode: 0o700 });
 
   const extracted = [];
   let zipfile;
@@ -62,7 +62,7 @@ export async function extractZip(fm, zipPath, destPath, { maxEntries, maxTotalSi
 
     let totalWritten = 0;
     for await (const entry of zipfile.eachEntry()) {
-      // Повторная (сверх встроенной в yauzl) проверка имени: защита в глубину от Zip Slip.
+      // Повторная проверка имени: защита в глубину от Zip Slip.
       const outPath = await resolveInside(destAbs, entry.fileName);
       if (entry.fileName.endsWith("/")) {
         await fs.mkdir(outPath, { recursive: true, mode: 0o700 });
@@ -74,7 +74,7 @@ export async function extractZip(fm, zipPath, destPath, { maxEntries, maxTotalSi
           entryWritten += chunk.length;
           totalWritten += chunk.length;
           if (totalWritten > maxTotalSize) {
-            cb(new SecurityError(`Распакованный размер превысил лимит ${maxTotalSize} байт (zip bomb)`));
+            cb(new SecurityError(`Распакованный размер превысил лимит ${maxTotalSize} байт`));
           } else {
             cb(null, chunk);
           }
@@ -93,7 +93,6 @@ export async function extractZip(fm, zipPath, destPath, { maxEntries, maxTotalSi
     zipfile?.close();
     await fs.rm(destAbs, { recursive: true, force: true });
     if (err instanceof AppError || err.code) throw err;
-    // Ошибки формата от yauzl (в т.ч. «invalid relative path» при Zip Slip).
     throw new SecurityError(`Архив отклонён: ${err.message}`);
   }
   return { destination: fm.location(destAbs), files: extracted };

@@ -5,7 +5,6 @@ const SKIP_FS_TYPES = new Set(["tmpfs", "devtmpfs", "squashfs", "overlay", "proc
 
 /**
  * Список локальных накопителей: имя, файловая система, общий объём, занятое и доступное место.
- * Аналог DriveInfo.GetDrives() из .NET.
  */
 export async function getDrives() {
   const drives = await si.fsSize();

@@ -10,7 +10,6 @@ const READ_FLAGS = FS.O_RDONLY | (FS.O_NOFOLLOW ?? 0);
 
 /**
  * Чтение, запись и удаление файлов внутри песочницы пользователя.
- * Каждый путь проходит через resolveInside
  */
 export class FileManager {
   #root;
@@ -92,8 +91,6 @@ export class FileManager {
     return this.#meta(abs, buffer.length);
   }
 
-  // Атомарная замена: пишем во временный файл рядом и переименовываем.
-  // Другие процессы видят либо старое, либо новое содержимое целиком, но не половину.
   async overwrite(userPath, content) {
     const abs = await this.resolve(userPath);
     const buffer = this.#toBuffer(content);

@@ -31,9 +31,7 @@ function assertSize(text, maxBytes) {
 }
 
 /**
- * Безопасная десериализация JSON: только JSON.parse (никакого eval и «умных» сериализаторов,
- * восстанавливающих функции/классы), удаление ключей, ведущих к prototype pollution,
- * лимит размера, затем проверка по схеме.
+ * Безопасная десериализация JSON: только JSON.parse
  */
 export function parseJson(text, schema, { maxBytes }) {
   assertSize(text, maxBytes);
@@ -69,14 +67,12 @@ export function parsePeopleXml(text, { maxBytes }) {
   try {
     doc = xmlParser.parse(text);
   } catch {
-    // Например, элемент <__proto__>: парсер сам отказывается его разбирать (prototype pollution).
     throw new SecurityError("XML содержит недопустимые имена элементов");
   }
   if (typeof doc.people !== "object") throw new AppError("Ожидался корневой элемент <people>");
 
   const people = (doc.people.person ?? []).map((p) => {
     if (typeof p !== "object") throw new AppError("Некорректный элемент <person>");
-    // В XML всё — текст: возраст переводим в число только если это действительно 1–3 цифры.
     return { ...p, ...("age" in p && { age: /^\d{1,3}$/.test(p.age) ? Number(p.age) : NaN }) };
   });
   return validate(PeopleSchema, people);
