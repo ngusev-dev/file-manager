@@ -1,7 +1,3 @@
--- Принцип наименьших привилегий: роль приложения (:app_role подставляет scripts/db-init.js
--- через escapeIdentifier) не имеет прямого доступа к таблицам и может только вызывать функции.
--- Даже при компрометации приложения нельзя выполнить DROP/DELETE/SELECT * FROM users.
-
 REVOKE ALL ON SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO :app_role;
 

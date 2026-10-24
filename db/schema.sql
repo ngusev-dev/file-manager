@@ -1,5 +1,3 @@
--- Схема БД файлового менеджера. Скрипт идемпотентен: повторный запуск не теряет данные.
-
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'operation_type') THEN

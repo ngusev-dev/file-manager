@@ -1,8 +1,3 @@
--- Хранимые функции — единственный интерфейс приложения к данным.
--- SECURITY DEFINER: функции выполняются с правами владельца (администратора БД),
--- а у роли приложения нет прямого доступа к таблицам — только EXECUTE (см. roles.sql).
--- SET search_path защищает SECURITY DEFINER-функции от подмены объектов через search_path.
-
 CREATE OR REPLACE FUNCTION register_user(p_username TEXT, p_password_hash TEXT)
 RETURNS INT
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
