@@ -23,8 +23,6 @@ AS $$
     WHERE u.username = p_username;
 $$;
 
--- Счётчик неудачных попыток увеличивается одним UPDATE: параллельные попытки входа
--- не могут «потерять» инкремент (нет гонки read-modify-write в приложении).
 CREATE OR REPLACE FUNCTION register_login_failure(
     p_user_id INT, p_username TEXT, p_max_attempts INT, p_lock_minutes INT
 )
@@ -57,9 +55,6 @@ BEGIN
 END
 $$;
 
--- Фиксирует операцию над файлом: обновляет таблицу files и пишет запись в журнал.
--- Вызов функции выполняется атомарно (одна транзакция), поэтому состояние files
--- и журнал operations не могут разойтись.
 CREATE OR REPLACE FUNCTION record_file_operation(
     p_user_id   INT,
     p_type      operation_type,
