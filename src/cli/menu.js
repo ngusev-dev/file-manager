@@ -9,7 +9,6 @@ import {
   serializeJson,
   parsePeopleXml,
   serializePeopleXml,
-  PeopleSchema,
 } from "../modules/jsonXml.js";
 import { createZip, extractZip } from "../modules/archive.js";
 
@@ -99,7 +98,52 @@ async function askPeople() {
   return people;
 }
 
-async function structuredMenu({ fm, user }, format) {
+async function jsonMenu({ fm, user }) {
+  const action = await select({
+    message: "Работа с JSON",
+    choices: [
+      { name: "Создать JSON-файл", value: "write" },
+      { name: "Прочитать JSON-файл", value: "read" },
+      { name: "Перезаписать JSON-файл", value: "overwrite" },
+      { name: "← Назад", value: "back" },
+    ],
+  });
+  if (action === "back") return;
+
+  const target = await askPath("Путь к JSON-файлу", "data.json");
+  const opts = { maxBytes: fm.maxFileSize };
+  if (action === "read") {
+    const { content, meta } = await fm.readText(target);
+    const data = parseJson(content, opts);
+    await auditFile(user, "read", meta, { format: "json" });
+    title(`${meta.location} (${formatBytes(meta.size)})`);
+    console.log(serializeJson(data));
+    return;
+  }
+
+  const content = await input({
+    message: "JSON",
+    required: true,
+    validate: (text) => {
+      try {
+        parseJson(text, opts);
+        return true;
+      } catch (err) {
+        return toUserMessage(err);
+      }
+    },
+  });
+  const text = serializeJson(parseJson(content, opts));
+  if (action === "overwrite" && !(await confirm({ message: `Перезаписать ${target}?`, default: false }))) {
+    return;
+  }
+  const meta = action === "write" ? await fm.create(target, text) : await fm.overwrite(target, text);
+  await auditFile(user, action === "write" ? "create" : "modify", meta, { format: "json" });
+  ok(`JSON сохранён → ${meta.location}`);
+}
+
+async function xmlMenu({ fm, user }) {
+  const format = "xml";
   const FORMAT = format.toUpperCase();
   const action = await select({
     message: `Работа с ${FORMAT}`,
@@ -112,14 +156,14 @@ async function structuredMenu({ fm, user }, format) {
 
   if (action === "write") {
     const people = await askPeople();
-    const text = format === "json" ? serializeJson(people, PeopleSchema) : serializePeopleXml(people);
+    const text = serializePeopleXml(people);
     const meta = await fm.create(await askPath("Имя файла", `people.${format}`), text);
     await auditFile(user, "create", meta, { format });
     ok(`Сохранено записей: ${people.length} → ${meta.location}`);
   } else if (action === "read") {
     const { content, meta } = await fm.readText(await askPath("Путь к файлу", `people.${format}`));
     const opts = { maxBytes: fm.maxFileSize };
-    const people = format === "json" ? parseJson(content, PeopleSchema, opts) : parsePeopleXml(content, opts);
+    const people = parsePeopleXml(content, opts);
     await auditFile(user, "read", meta, { format, records: people.length });
     title(`${meta.location}: записей ${people.length}`);
     console.table(people);
@@ -202,8 +246,8 @@ async function showJournal({ user }) {
 const MAIN_ACTIONS = {
   drives: showDrives,
   files: filesMenu,
-  json: (ctx) => structuredMenu(ctx, "json"),
-  xml: (ctx) => structuredMenu(ctx, "xml"),
+  json: jsonMenu,
+  xml: xmlMenu,
   zip: zipMenu,
   dbFiles: showMyFiles,
   journal: showJournal,

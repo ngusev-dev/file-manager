@@ -33,7 +33,7 @@ function assertSize(text, maxBytes) {
 /**
  * Безопасная десериализация JSON: только JSON.parse
  */
-export function parseJson(text, schema, { maxBytes }) {
+export function parseJson(text, { maxBytes }) {
   assertSize(text, maxBytes);
   let data;
   try {
@@ -41,11 +41,11 @@ export function parseJson(text, schema, { maxBytes }) {
   } catch {
     throw new AppError("Файл не является корректным JSON");
   }
-  return validate(schema, data);
+  return data;
 }
 
-export function serializeJson(value, schema) {
-  return JSON.stringify(validate(schema, value), null, 2) + "\n";
+export function serializeJson(value) {
+  return JSON.stringify(value, null, 2) + "\n";
 }
 
 const xmlParser = new XMLParser({
