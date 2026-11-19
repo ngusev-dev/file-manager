@@ -2,3 +2,7 @@ node_modules/
 sandbox/
 .env
 *.log
+.artifacts/
+.ci-tools/
+.act.env
+/reports/

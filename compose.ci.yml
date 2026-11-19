@@ -1,0 +1,58 @@
+x-database: &database
+  PGHOST: postgres
+  PGDATABASE: file_manager
+  DB_APP_PASSWORD: ${DB_APP_PASSWORD:-}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: file_manager
+      POSTGRES_USER: fm_admin
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:-}
+    healthcheck:
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, fm_admin, -d, file_manager]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  init:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    image: secure-file-manager:ci
+    environment:
+      <<: *database
+      DB_ADMIN_PASSWORD: ${DB_ADMIN_PASSWORD:-}
+    command: [node, scripts/db-init.js]
+
+  test:
+    depends_on: &initialized
+      init:
+        condition: service_completed_successfully
+    image: secure-file-manager:ci
+    environment:
+      <<: *database
+      REQUIRE_POSTGRES: "1"
+      NODE_OPTIONS: >-
+        --test-reporter=spec --test-reporter-destination=stderr
+        --test-reporter=junit --test-reporter-destination=stdout
+    command: [npm, test, --silent]
+
+  app:
+    depends_on: *initialized
+    image: secure-file-manager:ci
+    environment: *database
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080"
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:8080/health').then(response => { if (!response.ok) process.exitCode = 1; }).catch(() => { process.exitCode = 1; })",
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 30

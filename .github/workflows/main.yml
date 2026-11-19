@@ -1,0 +1,148 @@
+name: File Manager CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  COMPOSE_FILE: compose.ci.yml
+  COMPOSE_DISABLE_ENV_FILE: "1"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Cache Docker dependency layers
+        uses: actions/cache@v4
+        with:
+          path: .artifacts/build-cache
+          key: docker-node24-${{ runner.arch }}-${{ hashFiles('Dockerfile', 'package.json', 'package-lock.json') }}
+          restore-keys: docker-node24-${{ runner.arch }}-
+      - name: Build application image
+        run: |
+          builder="file-manager-$(openssl rand -hex 6)"
+          docker buildx create --driver docker-container --name "$builder"
+          trap 'docker buildx rm "$builder"' EXIT
+          cache=.artifacts/build-cache
+          docker buildx build --builder "$builder" --load -t secure-file-manager:ci \
+            --cache-from "type=local,src=$cache" \
+            --cache-to "type=local,dest=$cache,mode=max" .
+      - name: Export application image
+        run: docker save secure-file-manager:ci | gzip -1 > file-manager-image.tar.gz
+      - uses: actions/upload-artifact@v4
+        env:
+          ACTIONS_ARTIFACT_UPLOAD_CONCURRENCY: ${{ env.ACT == 'true' && '1' || '' }}
+        with:
+          name: file-manager-image
+          path: file-manager-image.tar.gz
+          compression-level: 0
+          if-no-files-found: error
+
+  test:
+    name: Test
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: file-manager-image
+      - name: Run Node.js tests with PostgreSQL
+        run: |
+          docker load -i file-manager-image.tar.gz
+          export DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-$(openssl rand -hex 24)}"
+          export DB_APP_PASSWORD="${DB_APP_PASSWORD:-$(openssl rand -hex 24)}"
+          export COMPOSE_PROJECT_NAME="file-manager-ci-$(openssl rand -hex 6)"
+          trap 'docker compose down --volumes' EXIT
+
+          mkdir -p reports
+          docker compose create test
+          docker compose cp tests test:/app/tests
+          docker compose up -d --no-recreate test
+          test_container=$(docker compose ps -aq test)
+          test_status=$(docker wait "$test_container")
+          docker logs "$test_container" > reports/junit.xml
+          exit "$test_status"
+      - name: Upload JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit
+          path: reports/junit.xml
+
+  sast:
+    name: SAST
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Scan application and fail on High or Critical findings
+        run: |
+          tar -cf - src scripts | docker run --rm -i --entrypoint sh semgrep/semgrep:1.185.0 -ec '
+            mkdir /scan
+            tar -xf - -C /scan
+            cd /scan
+            semgrep scan --config p/javascript --config p/security-audit --metrics off --strict --json .
+          ' > semgrep.json
+          jq -e '
+            [.results[] | select(.extra.severity | IN("ERROR", "HIGH", "CRITICAL"))] as $blocking
+            | if ($blocking | length) == 0 then true
+              else error($blocking | map("\(.extra.severity) \(.check_id) \(.path):\(.start.line)") | join("\n"))
+              end
+          ' semgrep.json
+      - name: Upload Semgrep report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep
+          path: semgrep.json
+
+  deploy:
+    name: Local Deploy
+    needs: sast
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: file-manager-image
+      - name: Run the verified image and wait for readiness
+        env:
+          KEEP_LOCAL_DEPLOY: ${{ vars.KEEP_LOCAL_DEPLOY }}
+        run: |
+          docker load -i file-manager-image.tar.gz
+          export DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-$(openssl rand -hex 24)}"
+          export DB_APP_PASSWORD="${DB_APP_PASSWORD:-$(openssl rand -hex 24)}"
+          export COMPOSE_PROJECT_NAME="file-manager-ci-$(openssl rand -hex 6)"
+          trap 'docker compose down --volumes' EXIT
+
+          docker compose up -d --wait app
+          docker compose port app 8080
+          if [[ ${ACT:-} == true && $KEEP_LOCAL_DEPLOY == true ]]; then
+            printf 'Compose project: %s\n' "$COMPOSE_PROJECT_NAME"
+            trap - EXIT
+          fi

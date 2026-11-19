@@ -12,7 +12,10 @@ const dbAvailable = await getPool()
   .query("SELECT 1")
   .then(
     () => true,
-    () => false,
+    (error) => {
+      if (process.env.REQUIRE_POSTGRES === "1") throw error;
+      return false;
+    },
   );
 const skip = dbAvailable ? false : "PostgreSQL недоступна";
 after(closePool);

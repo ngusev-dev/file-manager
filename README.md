@@ -44,4 +44,51 @@ XML по-прежнему работает со списком людей и п�
 | Исчерпание ресурсов | Лимит размера файла, таймаут SQL-запросов, ограничение выборки журнала | `src/config.js`, `src/db/pool.js` | `fileManager.test.js` |
 | Утечка информации через ошибки | Пользователю — только понятное сообщение; детали — в режиме `DEBUG` | `src/errors.js` | — |
 
-Секреты (пароли БД) хранятся только в `.env`, который исключён из git.
+При локальной разработке задайте пароли БД в `.env`, который исключён из git.
+
+## CI/CD (SDLC, практика 2)
+
+[Условия практики](https://sdlc.yonote.ru/share/SDLC_Lab_2) реализованы в
+[`.github/workflows/main.yml`](.github/workflows/main.yml). GitHub Actions запускает конвейер
+при push и pull request в `main`, а также вручную из вкладки **Actions**.
+Локально тот же конвейер запускается через [act](https://nektosact.com/installation/).
+
+| Стадия | Что выполняется |
+| --- | --- |
+| Build | BuildKit устанавливает зависимости через `npm ci` по `package-lock.json` и проверяет синтаксис JavaScript через `node --check`. Образ приложения передаётся в Test и Local Deploy через артефакт `file-manager-image`. |
+| Test | Compose дожидается инициализации PostgreSQL. Модульные и интеграционные тесты выполняются в контейнере собранного образа. Ошибка подключения к БД останавливает стадию. Артефакт `junit` содержит отчёт JUnit XML. |
+| SAST | Semgrep проверяет исходники приложения и скрипты. Уровни High, Critical и устаревший уровень Error блокируют развёртывание. Артефакт `semgrep` содержит JSON-отчёт. |
+| Local Deploy | Docker Compose запускает проверенный образ с PostgreSQL и ждёт ответа `GET /health`. Приложение работает под пользователем `node`. |
+
+Dockerfile кэширует пакеты в npm-кэше BuildKit. Между запусками
+`actions/cache` сохраняет слои BuildKit, включая слой с установленными зависимостями.
+Для тестов и демонстрационного развёртывания workflow генерирует временные пароли БД
+и передаёт их в контейнеры через переменные окружения.
+
+### Локальный запуск
+
+Запустите Docker Desktop в режиме Linux-контейнеров и установите `act`.
+Из корня репозитория выполните:
+
+```sh
+act workflow_dispatch -W .github/workflows/main.yml --artifact-server-path .artifacts/act
+```
+
+Артефакты сохраняются в `.artifacts/act/`. После проверки конвейер удаляет свои контейнеры
+и тестовые данные. Чтобы оставить развёртывание запущенным для демонстрации, выполните:
+
+```sh
+act workflow_dispatch -W .github/workflows/main.yml --artifact-server-path .artifacts/act --var KEEP_LOCAL_DEPLOY=true
+curl http://127.0.0.1:8080/health
+```
+
+Ответ `ok` означает, что контейнер доступен и роль приложения может вызвать функцию в PostgreSQL.
+Подставьте имя из строки `Compose project` вместо `PROJECT`, чтобы открыть меню или остановить развёртывание.
+
+```sh
+docker compose -f compose.ci.yml -p PROJECT exec app node src/index.js
+docker compose -f compose.ci.yml -p PROJECT down --volumes
+```
+
+Для демонстрации на защите откройте журнал четырёх стадий, JUnit-отчёт, отчёт Semgrep и ответ `/health`.
+Архив финального образа можно загрузить из артефактов и импортировать через `docker load -i file-manager-image.tar.gz`.
