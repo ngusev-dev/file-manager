@@ -71,24 +71,12 @@ Dockerfile кэширует пакеты в npm-кэше BuildKit. Между з
 Из корня репозитория выполните:
 
 ```sh
-act workflow_dispatch -W .github/workflows/main.yml --artifact-server-path .artifacts/act
+act workflow_dispatch -W .github/workflows/main.yml --artifact-server-path .artifacts/act --env APP_PORT=0
 ```
 
-Артефакты сохраняются в `.artifacts/act/`. После проверки конвейер удаляет свои контейнеры
-и тестовые данные. Чтобы оставить развёртывание запущенным для демонстрации, выполните:
+Артефакты сохраняются в `.artifacts/act/`. Параметр `APP_PORT=0` позволяет Docker выбрать
+свободный порт на компьютере. Local Deploy дожидается статуса `healthy`, выводит назначенный
+порт и удаляет контейнеры и тома своего запуска.
 
-```sh
-act workflow_dispatch -W .github/workflows/main.yml --artifact-server-path .artifacts/act --var KEEP_LOCAL_DEPLOY=true
-curl http://127.0.0.1:8080/health
-```
-
-Ответ `ok` означает, что контейнер доступен и роль приложения может вызвать функцию в PostgreSQL.
-Подставьте имя из строки `Compose project` вместо `PROJECT`, чтобы открыть меню или остановить развёртывание.
-
-```sh
-docker compose -f compose.ci.yml -p PROJECT exec app node src/index.js
-docker compose -f compose.ci.yml -p PROJECT down --volumes
-```
-
-Для демонстрации на защите откройте журнал четырёх стадий, JUnit-отчёт, отчёт Semgrep и ответ `/health`.
+Для демонстрации на защите откройте журнал четырёх стадий, JUnit-отчёт и отчёт Semgrep.
 Архив финального образа можно загрузить из артефактов и импортировать через `docker load -i file-manager-image.tar.gz`.

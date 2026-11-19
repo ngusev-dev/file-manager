@@ -1,8 +1,3 @@
-x-database: &database
-  PGHOST: postgres
-  PGDATABASE: file_manager
-  DB_APP_PASSWORD: ${DB_APP_PASSWORD:-}
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -22,17 +17,21 @@ services:
         condition: service_healthy
     image: secure-file-manager:ci
     environment:
-      <<: *database
+      PGHOST: postgres
+      PGDATABASE: file_manager
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:-}
       DB_ADMIN_PASSWORD: ${DB_ADMIN_PASSWORD:-}
     command: [node, scripts/db-init.js]
 
   test:
-    depends_on: &initialized
+    depends_on:
       init:
         condition: service_completed_successfully
     image: secure-file-manager:ci
     environment:
-      <<: *database
+      PGHOST: postgres
+      PGDATABASE: file_manager
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:-}
       REQUIRE_POSTGRES: "1"
       NODE_OPTIONS: >-
         --test-reporter=spec --test-reporter-destination=stderr
@@ -40,9 +39,14 @@ services:
     command: [npm, test, --silent]
 
   app:
-    depends_on: *initialized
+    depends_on:
+      init:
+        condition: service_completed_successfully
     image: secure-file-manager:ci
-    environment: *database
+    environment:
+      PGHOST: postgres
+      PGDATABASE: file_manager
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:-}
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
     healthcheck:

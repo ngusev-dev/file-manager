@@ -1,10 +1,10 @@
 name: File Manager CI/CD
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -12,7 +12,6 @@ permissions:
 
 env:
   COMPOSE_FILE: compose.ci.yml
-  COMPOSE_DISABLE_ENV_FILE: "1"
 
 defaults:
   run:
@@ -131,8 +130,6 @@ jobs:
         with:
           name: file-manager-image
       - name: Run the verified image and wait for readiness
-        env:
-          KEEP_LOCAL_DEPLOY: ${{ vars.KEEP_LOCAL_DEPLOY }}
         run: |
           docker load -i file-manager-image.tar.gz
           export DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-$(openssl rand -hex 24)}"
@@ -142,7 +139,3 @@ jobs:
 
           docker compose up -d --wait app
           docker compose port app 8080
-          if [[ ${ACT:-} == true && $KEEP_LOCAL_DEPLOY == true ]]; then
-            printf 'Compose project: %s\n' "$COMPOSE_PROJECT_NAME"
-            trap - EXIT
-          fi
