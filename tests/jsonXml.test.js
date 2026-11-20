@@ -1,12 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { AppError, SecurityError } from "../src/errors.js";
-import {
-  parseJson,
-  serializeJson,
-  parsePeopleXml,
-  serializePeopleXml,
-} from "../src/modules/jsonXml.js";
+import { parseJson, serializeJson, parseXml, serializeXml } from "../src/modules/jsonXml.js";
 
 const opts = { maxBytes: 1024 * 1024 };
 const people = [
@@ -38,12 +33,22 @@ test("JSON: опасные ключи удаляются на всех уров�
   assert.equal(Object.prototype.polluted, undefined);
 });
 
-test("XML: сериализация и обратное чтение со спецсимволами", () => {
-  const xml = serializePeopleXml(people);
-  assert.match(xml, /&lt;Admin&gt; &amp;/);
-  assert.deepEqual(parsePeopleXml(xml, opts), people);
+test("XML: произвольная структура сохраняется при сериализации и чтении", () => {
+  const xml = '<?xml version="1.0" encoding="UTF-8"?><catalog xmlns="urn:files">'
+    + '<item id="01"><name>Анна &lt;Admin&gt; &amp; &quot;Co&quot;</name>'
+    + '<tags><tag>a</tag><tag>b</tag></tags></item><note>До <b>текст</b> после</note>'
+    + '<item id="02"/><!--комментарий--><raw><![CDATA[<text> & data]]></raw></catalog>';
+  const data = parseXml(xml, opts);
+  const text = serializeXml(data);
+  assert.equal(text, xml);
+  assert.deepEqual(parseXml(text, opts), data);
 });
 
+test("XML: некорректный документ, DTD и превышение размера отклоняются", () => {
+  assert.throws(() => parseXml("<root><item></root>", opts), AppError);
+  assert.throws(() => parseXml('<!DOCTYPE root [<!ENTITY x "value">]><root>&x;</root>', opts), SecurityError);
+  assert.throws(() => parseXml("<root/>", { maxBytes: 6 }), SecurityError);
+});
 
 test("JSON: некорректный JSON отклоняется", () => {
   for (const text of ["{not json", "", "undefined", '{"a":1,}', "[1,]", "NaN"]) {

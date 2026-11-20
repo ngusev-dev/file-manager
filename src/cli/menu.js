@@ -4,12 +4,7 @@ import { config } from "../config.js";
 import { toUserMessage } from "../errors.js";
 import { auditFile, auditFiles, getJournal, getFiles } from "../audit/audit.js";
 import { getDrives, formatBytes } from "../modules/disks.js";
-import {
-  parseJson,
-  serializeJson,
-  parsePeopleXml,
-  serializePeopleXml,
-} from "../modules/jsonXml.js";
+import { parseJson, serializeJson, parseXml, serializeXml } from "../modules/jsonXml.js";
 import { createZip, extractZip } from "../modules/archive.js";
 
 const ok = (msg) => console.log(styleText("green", `✔ ${msg}`));
@@ -87,87 +82,50 @@ async function filesMenu({ fm, user }) {
 
 // ─────────────────────────── JSON / XML ───────────────────────────
 
-async function askPeople() {
-  const people = [];
-  do {
-    const name = await input({ message: "Имя", required: true });
-    const age = await number({ message: "Возраст", min: 0, max: 150, required: true });
-    const email = await input({ message: "E-mail (необязательно)" });
-    people.push(email ? { name, age, email } : { name, age });
-  } while (await confirm({ message: "Добавить ещё одного человека?", default: false }));
-  return people;
-}
-
-async function jsonMenu({ fm, user }) {
+async function jsonXmlMenu({ fm, user }, format) {
+  const label = format.toUpperCase();
+  const [parse, serialize] = format === "json" ? [parseJson, serializeJson] : [parseXml, serializeXml];
   const action = await select({
-    message: "Работа с JSON",
+    message: `Работа с ${label}`,
     choices: [
-      { name: "Создать JSON-файл", value: "write" },
-      { name: "Прочитать JSON-файл", value: "read" },
-      { name: "Перезаписать JSON-файл", value: "overwrite" },
+      { name: `Создать ${label}-файл`, value: "write" },
+      { name: `Прочитать ${label}-файл`, value: "read" },
+      { name: `Перезаписать ${label}-файл`, value: "overwrite" },
       { name: "← Назад", value: "back" },
     ],
   });
   if (action === "back") return;
 
-  const target = await askPath("Путь к JSON-файлу", "data.json");
+  const target = await askPath(`Путь к ${label}-файлу`, `data.${format}`);
   const opts = { maxBytes: fm.maxFileSize };
   if (action === "read") {
     const { content, meta } = await fm.readText(target);
-    const data = parseJson(content, opts);
-    await auditFile(user, "read", meta, { format: "json" });
+    const data = parse(content, opts);
+    await auditFile(user, "read", meta, { format });
     title(`${meta.location} (${formatBytes(meta.size)})`);
-    console.log(serializeJson(data));
+    console.log(serialize(data));
     return;
   }
 
   const content = await input({
-    message: "JSON",
+    message: label,
     required: true,
     validate: (text) => {
       try {
-        parseJson(text, opts);
+        parse(text, opts);
         return true;
       } catch (err) {
         return toUserMessage(err);
       }
     },
   });
-  const text = serializeJson(parseJson(content, opts));
+  const text = serialize(parse(content, opts));
   if (action === "overwrite" && !(await confirm({ message: `Перезаписать ${target}?`, default: false }))) {
     return;
   }
   const meta = action === "write" ? await fm.create(target, text) : await fm.overwrite(target, text);
-  await auditFile(user, action === "write" ? "create" : "modify", meta, { format: "json" });
-  ok(`JSON сохранён → ${meta.location}`);
-}
-
-async function xmlMenu({ fm, user }) {
-  const format = "xml";
-  const FORMAT = format.toUpperCase();
-  const action = await select({
-    message: `Работа с ${FORMAT}`,
-    choices: [
-      { name: `Создать ${FORMAT}-файл со списком людей`, value: "write" },
-      { name: `Прочитать ${FORMAT}-файл`, value: "read" },
-      { name: "← Назад", value: "back" },
-    ],
-  });
-
-  if (action === "write") {
-    const people = await askPeople();
-    const text = serializePeopleXml(people);
-    const meta = await fm.create(await askPath("Имя файла", `people.${format}`), text);
-    await auditFile(user, "create", meta, { format });
-    ok(`Сохранено записей: ${people.length} → ${meta.location}`);
-  } else if (action === "read") {
-    const { content, meta } = await fm.readText(await askPath("Путь к файлу", `people.${format}`));
-    const opts = { maxBytes: fm.maxFileSize };
-    const people = parsePeopleXml(content, opts);
-    await auditFile(user, "read", meta, { format, records: people.length });
-    title(`${meta.location}: записей ${people.length}`);
-    console.table(people);
-  }
+  await auditFile(user, action === "write" ? "create" : "modify", meta, { format });
+  ok(`${label} сохранён → ${meta.location}`);
 }
 
 // ───────────────────────────── ZIP ─────────────────────────────
@@ -246,8 +204,8 @@ async function showJournal({ user }) {
 const MAIN_ACTIONS = {
   drives: showDrives,
   files: filesMenu,
-  json: jsonMenu,
-  xml: xmlMenu,
+  json: (ctx) => jsonXmlMenu(ctx, "json"),
+  xml: (ctx) => jsonXmlMenu(ctx, "xml"),
   zip: zipMenu,
   dbFiles: showMyFiles,
   journal: showJournal,
