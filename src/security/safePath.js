@@ -40,7 +40,6 @@ export async function resolveInside(root, userPath, { allowRoot = false } = {}) 
 
   const rootReal = await fs.realpath(root);
   if (path.sep === "/" && userPath.includes("\\")) {
-    // Проверяем границы и для путей с Windows-разделителями, сохраняя имя файла в Linux.
     assertInside(rootReal, path.resolve(rootReal, userPath.replaceAll("\\", "/")), { allowRoot: true });
   }
   const lexical = path.resolve(rootReal, userPath);

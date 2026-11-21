@@ -22,6 +22,8 @@ jobs:
     name: Build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    outputs:
+      image_id: ${{ steps.upload_image.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,6 +46,7 @@ jobs:
       - name: Export application image
         run: docker save secure-file-manager:ci | gzip -1 > file-manager-image.tar.gz
       - uses: actions/upload-artifact@v4
+        id: upload_image
         env:
           ACTIONS_ARTIFACT_UPLOAD_CONCURRENCY: ${{ env.ACT == 'true' && '1' || '' }}
         with:
@@ -102,7 +105,8 @@ jobs:
             mkdir /scan
             tar -xf - -C /scan
             cd /scan
-            semgrep scan --config p/javascript --config p/security-audit --metrics off --strict --json .
+            semgrep scan --config p/javascript --config p/security-audit --config p/nodejs \
+              --metrics off --strict --json .
           ' > semgrep.json
           jq -e '
             [.results[] | select(.extra.severity | IN("ERROR", "HIGH", "CRITICAL"))] as $blocking
@@ -139,3 +143,13 @@ jobs:
 
           docker compose up -d --wait app
           docker compose port app 8080
+
+  cleanup:
+    name: Remove image after failure
+    needs: [build, test, sast, deploy]
+    if: failure() && needs.build.outputs.image_id != ''
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: GeekyEggo/delete-artifact@f275313e70c08f6120db482d7a6b98377786765b # v5.1.0
+        with:
+          name: file-manager-image

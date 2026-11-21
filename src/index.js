@@ -61,3 +61,10 @@ main()
     process.exitCode = 1;
   })
   .finally(closePool);
+
+//
+// import jwt from "jsonwebtoken";
+//
+// function demoToken() {
+//   return jwt.sign({ demo: true }, "public-demo-string");
+// }
